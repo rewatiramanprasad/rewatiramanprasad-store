@@ -1,5 +1,3 @@
-import db from '@/utils/db'
-
 function AboutPage() {
   return (
     <section>

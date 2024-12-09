@@ -6,7 +6,7 @@ import { Suspense } from 'react'
 function HomePage() {
   return (
     <>
-      {/* <Hero /> */}
+      <Hero />
       <Suspense fallback={<LoadingContainer />}>
         <FeaturedProducts />
       </Suspense>
