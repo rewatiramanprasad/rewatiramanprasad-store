@@ -2,9 +2,10 @@ import React from 'react'
 import { Button } from '../ui/button'
 import Link from 'next/link'
 import { LuShoppingCart } from 'react-icons/lu'
+import { fetchCartItems } from '@/utils/actions'
 
 function CartButton() {
-  const numItemInCart = 9
+  const numItemInCart = fetchCartItems()
   return (
     <Button
       asChild
@@ -14,8 +15,8 @@ function CartButton() {
     >
       <Link href={'/cart'}>
         <LuShoppingCart />
-        <span className='absolute -top-3 -right-1 bg-primary text-white rounded-full h-6 w-6 flex items-center justify-center text-xs'>
-            {numItemInCart}
+        <span className="absolute -top-3 -right-1 bg-primary text-white rounded-full h-6 w-6 flex items-center justify-center text-xs">
+          {numItemInCart}
         </span>
       </Link>
     </Button>

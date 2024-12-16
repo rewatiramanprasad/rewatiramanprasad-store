@@ -1,8 +1,13 @@
 'use server'
 import { redirect } from 'next/navigation'
 import db from './db'
-import { currentUser } from '@clerk/nextjs/server'
-import { imageSchema, productSchema, validateWithZodSchema } from './schemas'
+import { auth, currentUser } from '@clerk/nextjs/server'
+import {
+  imageSchema,
+  productSchema,
+  reviewSchema,
+  validateWithZodSchema,
+} from './schemas'
 import { deleteImage, uploadImage } from './supabase'
 import { revalidatePath } from 'next/cache'
 import { Dumbbell } from 'lucide-react'
@@ -230,16 +235,187 @@ export const createReviewAction = async (
   prevState: any,
   formData: FormData
 ) => {
+  const user = await getAuthUser()
   try {
-    
+    const rawData = Object.fromEntries(formData)
+    const validateFields = validateWithZodSchema(reviewSchema, rawData)
+    await db.review.create({
+      data: {
+        ...validateFields,
+        clerkId: user.id,
+      },
+    })
+    revalidatePath(`/products/${validateFields.productId}`)
     return { message: 'review submitted successfully' }
   } catch (error) {
     return renderError(error)
   }
 }
 
-export const fetchProductReviews = async () => {}
-export const fetchProductReviewsByUser = async () => {}
-export const deleteReviewAction = async () => {}
-export const findExistingReview = async () => {}
-export const fetchProductRating = async () => {}
+export const fetchProductReviews = async (productId: string) => {
+  const reviews = await db.review.findMany({
+    where: {
+      productId,
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  })
+  return reviews
+}
+
+export const fetchProductReviewsByUser = async () => {
+  const user = await getAuthUser()
+  const reviews = await db.review.findMany({
+    where: {
+      clerkId: user.id,
+    },
+    select: {
+      id: true,
+      rating: true,
+      comment: true,
+      product: {
+        select: {
+          image: true,
+          name: true,
+        },
+      },
+    },
+  })
+  return reviews
+}
+export const deleteReviewAction = async (prevState: { reviewId: string }) => {
+  const { reviewId } = prevState
+  const user = await getAuthUser()
+
+  try {
+    await db.review.delete({
+      where: {
+        id: reviewId,
+        clerkId: user.id,
+      },
+    })
+
+    revalidatePath('/reviews')
+    return { message: 'Review deleted successfully' }
+  } catch (error) {
+    return renderError(error)
+  }
+}
+export const fetchProductRating = async (productId: string) => {
+  const result = await db.review.groupBy({
+    by: ['productId'],
+    _avg: {
+      rating: true,
+    },
+    _count: {
+      rating: true,
+    },
+    where: {
+      productId,
+    },
+  })
+
+  return {
+    rating: result[0]?._avg.rating?.toFixed(1) ?? 0,
+    count: result[0]?._count.rating ?? 0,
+  }
+}
+export const findExistingReview = async (userId: string, productId: string) => {
+  return db.review.findFirst({
+    where: {
+      clerkId: userId,
+      productId,
+    },
+  })
+}
+
+export const fetchCartItems = async () => {
+  const { userId } = await auth()
+  const result = await db.cart.findFirst({
+    where: {
+      clerkId: userId ?? '',
+    },
+    select: {
+      numItemsInCart: true,
+    },
+  })
+  return result?.numItemsInCart || 0
+}
+
+const fetchProduct = async (productId: string) => {
+  const product = await db.product.findUnique({
+    where: {
+      id: productId,
+    },
+  })
+  if (!product) {
+    throw new Error('Product not found')
+  }
+  return product
+}
+
+const includeProductClause= {
+  cartItems: {
+    include: {
+      product: true
+    }
+  }
+}
+export const fetchOrCreateCart = async ({
+  userId,
+  errorOnFailure,
+}: {
+  userId: string
+  errorOnFailure: boolean
+}) => {
+  let cart = await db.cart.findFirst({
+    where: {
+      clerkId: userId,
+    },
+    include: includeProductClause,
+  })
+  if(!cart && errorOnFailure){
+    throw new Error('Cart not found')
+  }
+  if(!cart){
+    cart=await db.cart.create({
+      data:{
+        clerkId:userId,
+      },
+      include:includeProductClause
+    })
+  }
+  return cart
+}
+
+const updateOrCreateCartItem = async ({
+  productId,
+  cartId,
+  amount,
+}: {
+  productId:  string
+  cartId: string
+  amount:number
+}) => {
+  
+}
+
+export const updateCart = async () => {}
+
+export const addToCartAction = async (prevState: any, formData: FormData) => {
+  const user = getAuthUser()
+  try {
+    const productId = formData.get('productId') as string
+    const amount = Number(formData.get('amount'))
+    await fetchProduct(productId)
+    const cart = await fetchOrCreateCart({ userId: user.id })
+  } catch (error) {
+    return renderError(error)
+  }
+  redirect('/cart')
+}
+
+export const removeCartItemAction = async () => {}
+
+export const updateCartItemAction = async () => {}
