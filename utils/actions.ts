@@ -365,7 +365,7 @@ const includeProductClause = {
 }
 export const fetchOrCreateCart = async ({
   userId,
-  errorOnFailure=false,
+  errorOnFailure = false,
 }: {
   userId: string
   errorOnFailure?: boolean
@@ -466,7 +466,7 @@ export const addToCartAction = async (prevState: any, formData: FormData) => {
     const amount = Number(formData.get('amount'))
     await fetchProduct(productId)
     const cart = await fetchOrCreateCart({ userId: user.id })
-    await updateOrCreateCartItem({productId,cartId:cart.id,amount})
+    await updateOrCreateCartItem({ productId, cartId: cart.id, amount })
     await updateCart(cart)
   } catch (error) {
     return renderError(error)
@@ -474,6 +474,30 @@ export const addToCartAction = async (prevState: any, formData: FormData) => {
   redirect('/cart')
 }
 
-export const removeCartItemAction = async () => {}
-
 export const updateCartItemAction = async () => {}
+
+export const removeCartItemAction = async (
+  prevState: any,
+  formData: FormData
+) => {
+  const user = await getAuthUser()
+  try {
+    const cartItemId = formData.get('id') as string
+    const cart = await fetchOrCreateCart({
+      userId: user.id,
+      errorOnFailure: true,
+    })
+    await db.cartItem.delete({
+      where: {
+        id: cartItemId,
+        cartId: cart.id,
+      },
+    })
+
+    await updateCart(cart)
+    revalidatePath('/cart')
+    return { message: 'Item removed from cart' }
+  } catch (error) {
+    return renderError(error)
+  }
+}
