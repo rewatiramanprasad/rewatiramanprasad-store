@@ -11,6 +11,7 @@ import {
 import { deleteImage, uploadImage } from './supabase'
 import { revalidatePath } from 'next/cache'
 import { Dumbbell } from 'lucide-react'
+import { Cart } from '@prisma/client'
 
 const getAuthUser = async () => {
   const user = await currentUser()
@@ -355,19 +356,19 @@ const fetchProduct = async (productId: string) => {
   return product
 }
 
-const includeProductClause= {
+const includeProductClause = {
   cartItems: {
     include: {
-      product: true
-    }
-  }
+      product: true,
+    },
+  },
 }
 export const fetchOrCreateCart = async ({
   userId,
-  errorOnFailure,
+  errorOnFailure=false,
 }: {
   userId: string
-  errorOnFailure: boolean
+  errorOnFailure?: boolean
 }) => {
   let cart = await db.cart.findFirst({
     where: {
@@ -375,15 +376,15 @@ export const fetchOrCreateCart = async ({
     },
     include: includeProductClause,
   })
-  if(!cart && errorOnFailure){
+  if (!cart && errorOnFailure) {
     throw new Error('Cart not found')
   }
-  if(!cart){
-    cart=await db.cart.create({
-      data:{
-        clerkId:userId,
+  if (!cart) {
+    cart = await db.cart.create({
+      data: {
+        clerkId: userId,
       },
-      include:includeProductClause
+      include: includeProductClause,
     })
   }
   return cart
@@ -394,22 +395,79 @@ const updateOrCreateCartItem = async ({
   cartId,
   amount,
 }: {
-  productId:  string
+  productId: string
   cartId: string
-  amount:number
+  amount: number
 }) => {
-  
+  let cartItem = await db.cartItem.findFirst({
+    where: {
+      productId,
+      cartId,
+    },
+  })
+  if (cartItem) {
+    cartItem = await db.cartItem.update({
+      where: {
+        id: cartItem.id,
+      },
+      data: {
+        amount: cartItem.amount + amount,
+      },
+    })
+  } else {
+    cartItem = await db.cartItem.create({
+      data: {
+        amount,
+        productId,
+        cartId,
+      },
+    })
+  }
 }
 
-export const updateCart = async () => {}
+export const updateCart = async (cart: Cart) => {
+  const cartItems = await db.cartItem.findMany({
+    where: {
+      cartId: cart.id,
+    },
+    include: {
+      product: true, // Include the related product
+    },
+  })
+
+  let numItemsInCart = 0
+  let cartTotal = 0
+
+  for (const item of cartItems) {
+    numItemsInCart += item.amount
+    cartTotal += item.amount * item.product.price
+  }
+  const tax = cart.taxRate * cartTotal
+  const shipping = cartTotal ? cart.shipping : 0
+  const orderTotal = cartTotal + tax + shipping
+
+  await db.cart.update({
+    where: {
+      id: cart.id,
+    },
+    data: {
+      numItemsInCart,
+      cartTotal,
+      tax,
+      orderTotal,
+    },
+  })
+}
 
 export const addToCartAction = async (prevState: any, formData: FormData) => {
-  const user = getAuthUser()
+  const user = await getAuthUser()
   try {
     const productId = formData.get('productId') as string
     const amount = Number(formData.get('amount'))
     await fetchProduct(productId)
     const cart = await fetchOrCreateCart({ userId: user.id })
+    await updateOrCreateCartItem({productId,cartId:cart.id,amount})
+    await updateCart(cart)
   } catch (error) {
     return renderError(error)
   }
