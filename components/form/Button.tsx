@@ -52,6 +52,7 @@ export const IconButton = ({ actionType }: { actionType: actionType }) => {
       case 'delete':
         return <LuTrash2 />
       default:
+        // eslint-disable-next-line no-case-declarations
         const never: never = actionType
         throw new Error(`Invalid action type: ${never}`)
     }
