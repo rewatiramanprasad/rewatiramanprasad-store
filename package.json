@@ -9,7 +9,8 @@
     "lint": "next lint",
     "lint:fix": "eslint --fix --ext .js,.tsx .",
     "migration": "npx prisma migrate dev --name init && npx prisma db push",
-    "studio": "npx prisma studio"
+    "studio": "npx prisma studio",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.8.2",
