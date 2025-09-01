@@ -89,3 +89,8 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model keep_alive{
+id  Int @id @default(autoincrement())
+ts DateTime @default(now())
+}
