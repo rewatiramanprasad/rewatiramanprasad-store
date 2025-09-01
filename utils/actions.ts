@@ -10,7 +10,6 @@ import {
 } from './schemas'
 import { deleteImage, uploadImage } from './supabase'
 import { revalidatePath } from 'next/cache'
-import { Dumbbell } from 'lucide-react'
 import { Cart } from '@prisma/client'
 
 const getAuthUser = async () => {
