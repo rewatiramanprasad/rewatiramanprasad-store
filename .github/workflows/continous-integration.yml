@@ -3,19 +3,17 @@ name: Continuous Integration
 on:
   push:
     branches-ignore:
-      - main   # Don't run CI on main branch (use CD workflow there)
+      - main # Don't run CI on main branch (use CD workflow there)
   pull_request:
     branches:
-      - "**"   # Run on all PRs
+      - '**' # Run on all PRs
 
 jobs:
-  build:
+  ci:
     runs-on: ubuntu-latest
     env:
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
-  ci:
-    runs-on: ubuntu-latest
 
     strategy:
       matrix:
